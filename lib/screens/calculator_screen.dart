@@ -610,9 +610,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // ────────────────────────────────────────────────────────────────────────────
   Widget _zona3() {
     final filas = [
-      (_m('USD'), _rates?.bcv, 'USD'),
-      (_m('USDT'), _rates?.usdt, 'USDT'),
-      (_m('EUR'), _rates?.eur, 'EUR'),
+      (_m('USD'), _rates?.bcv, 'USD', 'bcv'),
+      (_m('USDT'), _rates?.usdt, 'USDT', 'usdt'),
+      (_m('EUR'), _rates?.eur, 'EUR', 'eur'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,10 +633,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           child: Column(
             children: filas.asMap().entries.map((e) {
               final idx = e.key;
-              final (moneda, tasa, code) = e.value;
+              final (moneda, tasa, code, sourceKey) = e.value;
               final esUltima = idx == filas.length - 1;
               final copiado = _copiado['tasa_$code'] == true;
               final tasaStr = tasa != null ? _fmt(tasa) : '—';
+              final fuente = _rates?.sources[sourceKey];
               return GestureDetector(
                 onLongPress: () {
                   if (tasa != null) _copiar('tasa_$code', tasaStr);
@@ -671,10 +672,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                                   fontFamily: 'monospace')),
                         ),
                         const SizedBox(width: 10),
-                        Text(moneda.nombre,
-                            style: const TextStyle(
-                                fontSize: 11, color: kTextSec)),
-                        const Spacer(),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(moneda.nombre,
+                                  style: const TextStyle(
+                                      fontSize: 11, color: kTextSec)),
+                              if (fuente != null)
+                                Text(fuente,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 9, color: kTextDim)),
+                            ],
+                          ),
+                        ),
                         if (copiado)
                           const Text('Copiado ✓',
                               style: TextStyle(
