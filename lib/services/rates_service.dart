@@ -1,12 +1,21 @@
 import 'dart:convert';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/rates_model.dart';
 
 class RatesService {
-  RatesService({http.Client? client}) : _client = client ?? http.Client();
+  RatesService({http.Client? client, Future<bool> Function()? hasConnection})
+      : _client = client ?? http.Client(),
+        _hasConnection = hasConnection ?? _defaultHasConnection;
 
   final http.Client _client;
+  final Future<bool> Function() _hasConnection;
+
+  static Future<bool> _defaultHasConnection() async {
+    final result = await Connectivity().checkConnectivity();
+    return result != ConnectivityResult.none;
+  }
 
   // IMPORTANTE: reemplazar con la URL real del Worker desplegado
   // Ejemplo: https://bcv-rates-worker.tuusuario.workers.dev/rates
@@ -36,6 +45,9 @@ class RatesService {
   // transitorios (timeout, hiccup de red). Lanza excepción si se agotan
   // los intentos.
   Future<Rates> fetchFromNetwork({int retries = 2}) async {
+    if (!await _hasConnection()) {
+      throw Exception('Sin conexión');
+    }
     for (var attempt = 0; ; attempt++) {
       try {
         final res = await _client

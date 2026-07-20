@@ -28,7 +28,7 @@ void main() {
       calls++;
       return http.Response(validBody, 200);
     });
-    final service = RatesService(client: client);
+    final service = _buildService(client);
 
     final rates = await service.fetchFromNetwork();
 
@@ -44,7 +44,7 @@ void main() {
       if (calls < 3) return http.Response('error', 500);
       return http.Response(validBody, 200);
     });
-    final service = RatesService(client: client);
+    final service = _buildService(client);
 
     final rates = await service.fetchFromNetwork(retries: 2);
 
@@ -59,7 +59,7 @@ void main() {
       calls++;
       return http.Response('error', 500);
     });
-    final service = RatesService(client: client);
+    final service = _buildService(client);
 
     await expectLater(
       () => service.fetchFromNetwork(retries: 2),
@@ -70,7 +70,7 @@ void main() {
 
   test('fetchFromNetwork exitoso guarda las tasas en cache', () async {
     final client = MockClient((request) async => http.Response(validBody, 200));
-    final service = RatesService(client: client);
+    final service = _buildService(client);
 
     await service.fetchFromNetwork();
     final cached = await service.getCachedRates();
@@ -81,8 +81,29 @@ void main() {
 
   test('getCachedRates devuelve null si nunca se guardó nada', () async {
     final client = MockClient((request) async => http.Response(validBody, 200));
-    final service = RatesService(client: client);
+    final service = _buildService(client);
 
     expect(await service.getCachedRates(), isNull);
   });
+
+  test('fetchFromNetwork no intenta la red si no hay conexión', () async {
+    var calls = 0;
+    final client = MockClient((request) async {
+      calls++;
+      return http.Response(validBody, 200);
+    });
+    final service = RatesService(
+      client: client,
+      hasConnection: () async => false,
+    );
+
+    await expectLater(
+      () => service.fetchFromNetwork(),
+      throwsException,
+    );
+    expect(calls, 0); // ni siquiera se intentó: nos ahorramos la espera
+  });
 }
+
+RatesService _buildService(http.Client client) =>
+    RatesService(client: client, hasConnection: () async => true);
