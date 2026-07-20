@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/rates_model.dart';
 
 class RatesService {
+  RatesService({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+
   // IMPORTANTE: reemplazar con la URL real del Worker desplegado
   // Ejemplo: https://bcv-rates-worker.tuusuario.workers.dev/rates
   static const String _apiUrl =
@@ -28,20 +32,30 @@ class RatesService {
     await prefs.setString(_cacheKey, jsonEncode(rates.toJson()));
   }
 
-  // Fetch desde el Worker — puede lanzar excepción si no hay red
-  Future<Rates> fetchFromNetwork() async {
-    final res =
-        await http.get(Uri.parse(_apiUrl)).timeout(const Duration(seconds: 8));
+  // Fetch desde el Worker, con reintentos y espera creciente ante fallos
+  // transitorios (timeout, hiccup de red). Lanza excepción si se agotan
+  // los intentos.
+  Future<Rates> fetchFromNetwork({int retries = 2}) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        final res = await _client
+            .get(Uri.parse(_apiUrl))
+            .timeout(const Duration(seconds: 8));
 
-    if (res.statusCode != 200) {
-      throw Exception('Error ${res.statusCode}');
+        if (res.statusCode != 200) {
+          throw Exception('Error ${res.statusCode}');
+        }
+
+        final rates = Rates.fromJson(
+          jsonDecode(res.body) as Map<String, dynamic>,
+        );
+
+        await _cacheRates(rates);
+        return rates;
+      } catch (_) {
+        if (attempt >= retries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      }
     }
-
-    final rates = Rates.fromJson(
-      jsonDecode(res.body) as Map<String, dynamic>,
-    );
-
-    await _cacheRates(rates);
-    return rates;
   }
 }
