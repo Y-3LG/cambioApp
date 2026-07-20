@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/rates_model.dart';
 import '../services/rates_service.dart';
+import '../utils/currency_converter.dart' as converter;
 import '../widgets/status_dot.dart';
 
 // ─── Colores ──────────────────────────────────────────────────────────────────
@@ -59,37 +60,14 @@ Moneda _m(String code) =>
     _monedas.firstWhere((m) => m.code == code, orElse: () => _monedas[0]);
 
 // ─── Conversión ───────────────────────────────────────────────────────────────
-double _toBS(double v, String desde, Rates r) {
-  switch (desde) {
-    case 'USD': return v * r.bcv;
-    case 'USDT': return v * r.usdt;
-    case 'EUR': return v * r.eur;
-    default: return v;
-  }
-}
-
-double _fromBS(double v, String hacia, Rates r) {
-  switch (hacia) {
-    case 'USD': return r.bcv > 0 ? v / r.bcv : 0;
-    case 'USDT': return r.usdt > 0 ? v / r.usdt : 0;
-    case 'EUR': return r.eur > 0 ? v / r.eur : 0;
-    default: return v;
-  }
-}
-
+// La lógica real vive en lib/utils/currency_converter.dart (funciones públicas,
+// testeables). Estos alias cortos evitan reescribir cada punto de uso abajo.
 double _conv(double v, String desde, String hacia, Rates r) =>
-    _fromBS(_toBS(v, desde, r), hacia, r);
+    converter.convert(v, desde, hacia, r);
 
-// ─── Formato venezolano ───────────────────────────────────────────────────────
-String _fmt(double v) {
-  if (v == 0) return '0';
-  return NumberFormat('#,##0.##', 'es_VE').format(v);
-}
+String _fmt(double v) => converter.formatAmount(v);
 
-double? _parse(String text) {
-  if (text.isEmpty) return null;
-  return double.tryParse(text.replaceAll('.', '').replaceAll(',', '.'));
-}
+double? _parse(String text) => converter.parseAmount(text);
 
 // ─────────────────────────────────────────────────────────────────────────────
 class CalculatorScreen extends StatefulWidget {
