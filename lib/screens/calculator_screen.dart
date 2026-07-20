@@ -171,8 +171,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     }
     _lock = false;
     final monto = _parse(_editingTop ? _ctrlDesde.text : _ctrlHacia.text);
-    if (monto != null && monto > 0) _equivCtrl.forward();
-    else _equivCtrl.reverse();
+    if (monto != null && monto > 0) {
+      _equivCtrl.forward();
+    } else {
+      _equivCtrl.reverse();
+    }
     setState(() {});
   }
 
@@ -223,8 +226,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               return GestureDetector(
                 onTap: () {
                   setState(() {
-                    if (esDesde) _desde = m.code;
-                    else _hacia = m.code;
+                    if (esDesde) {
+                      _desde = m.code;
+                    } else {
+                      _hacia = m.code;
+                    }
                   });
                   Navigator.pop(context);
                   _recalc();
