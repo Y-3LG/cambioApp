@@ -15,6 +15,9 @@ android/build/
 android/local.properties
 android/.idea/
 
+# Cloudflare
+.wrangler/
+
 # iOS (if applicable)
 ios/Pods/
 ios/.symlinks/
