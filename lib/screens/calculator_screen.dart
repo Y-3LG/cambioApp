@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../controllers/rates_controller.dart';
 import '../models/rates_model.dart';
-import '../services/rates_service.dart';
 import '../utils/currency_converter.dart' as converter;
 import '../widgets/status_dot.dart';
 
@@ -78,10 +78,7 @@ class CalculatorScreen extends StatefulWidget {
 
 class _CalculatorScreenState extends State<CalculatorScreen>
     with TickerProviderStateMixin {
-  final _service = RatesService();
-  Rates? _rates;
-  bool _isLoading = false;
-  bool _isOffline = false;
+  final _controller = RatesController();
 
   String _desde = 'USD';
   String _hacia = 'BS';
@@ -123,13 +120,20 @@ class _CalculatorScreenState extends State<CalculatorScreen>
       if (_focusHacia.hasFocus && mounted) setState(() => _editingTop = false);
     });
 
-    _loadRates();
+    _controller.addListener(_onRatesChanged);
+    _controller.load();
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _focusDesde.requestFocus());
   }
 
   @override
   void dispose() {
+    // RatesController no se dispone acá a propósito: si load() sigue en
+    // vuelo cuando la pantalla se destruye, un notifyListeners() tardío
+    // sobre un ChangeNotifier ya dispuesto lanza una excepción. No maneja
+    // recursos propios (no hay streams/timers), así que dejarlo vivir hasta
+    // que el garbage collector lo recoja es seguro.
+    _controller.removeListener(_onRatesChanged);
     _swapCtrl.dispose();
     _equivCtrl.dispose();
     _ctrlDesde.dispose();
@@ -140,34 +144,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   // ── Tasas ──────────────────────────────────────────────────────────────────
-  Future<void> _loadRates() async {
-    final cached = await _service.getCachedRates();
-    if (cached != null && mounted) {
-      setState(() => _rates = cached);
-      _recalc();
-    }
-    setState(() => _isLoading = true);
-    try {
-      final fresh = await _service.fetchFromNetwork();
-      if (mounted) setState(() { _rates = fresh; _isOffline = false; });
-      _recalc();
-    } catch (_) {
-      if (mounted) setState(() => _isOffline = true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  void _onRatesChanged() {
+    if (!mounted) return;
+    setState(() {});
+    _recalc();
   }
 
   // ── Cálculo ────────────────────────────────────────────────────────────────
   void _recalc() {
-    if (_rates == null || _lock) return;
+    final rates = _controller.rates;
+    if (rates == null || _lock) return;
     _lock = true;
     if (_editingTop) {
       final v = _parse(_ctrlDesde.text);
-      _ctrlHacia.text = v != null ? _fmt(_conv(v, _desde, _hacia, _rates!)) : '';
+      _ctrlHacia.text = v != null ? _fmt(_conv(v, _desde, _hacia, rates)) : '';
     } else {
       final v = _parse(_ctrlHacia.text);
-      _ctrlDesde.text = v != null ? _fmt(_conv(v, _hacia, _desde, _rates!)) : '';
+      _ctrlDesde.text = v != null ? _fmt(_conv(v, _hacia, _desde, rates)) : '';
     }
     _lock = false;
     final monto = _parse(_editingTop ? _ctrlDesde.text : _ctrlHacia.text);
@@ -287,26 +280,23 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
   // ── Helpers de UI ──────────────────────────────────────────────────────────
   String _tasaRef() {
-    if (_rates == null) return 'Cargando...';
-    final tasa = _conv(1, _desde, _hacia, _rates!);
+    final rates = _controller.rates;
+    if (rates == null) return 'Cargando...';
+    final tasa = _conv(1, _desde, _hacia, rates);
     return '1 ${_m(_desde).code} = ${_fmt(tasa)} ${_m(_hacia).code}';
   }
 
   String _timestamp() {
-    if (_rates == null) return '';
-    final age = _rates!.ageMinutes;
-    if (_isOffline) {
-      final h = DateFormat('HH:mm').format(_rates!.updatedAt.toLocal());
+    final rates = _controller.rates;
+    if (rates == null) return '';
+    final age = rates.ageMinutes;
+    if (_controller.isOffline) {
+      final h = DateFormat('HH:mm').format(rates.updatedAt.toLocal());
       return 'Sin conexion · datos de $h';
     }
     if (age < 1) return 'Actualizado ahora';
     if (age < 60) return 'Actualizado hace ${age}m';
     return 'Hace ${(age / 60).floor()}h';
-  }
-
-  DataStatus _dotStatus() {
-    if (_isOffline) return DataStatus.old;
-    return _rates?.status ?? DataStatus.old;
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -501,6 +491,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // ZONA 2 — También equivale a
   // ────────────────────────────────────────────────────────────────────────────
   Widget _zona2() {
+    final rates = _controller.rates;
     final montoSrc =
         _parse(_editingTop ? _ctrlDesde.text : _ctrlHacia.text);
     final monedaSrc = _editingTop ? _desde : _hacia;
@@ -523,8 +514,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
             const SizedBox(height: 10),
             ...otras.map((m) {
               final resultado =
-                  (_rates != null && montoSrc != null && montoSrc > 0)
-                      ? _conv(montoSrc, monedaSrc, m.code, _rates!)
+                  (rates != null && montoSrc != null && montoSrc > 0)
+                      ? _conv(montoSrc, monedaSrc, m.code, rates)
                       : null;
               final valorStr =
                   resultado != null ? _fmt(resultado) : '—';
@@ -609,10 +600,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // ZONA 3 — Tasas del día
   // ────────────────────────────────────────────────────────────────────────────
   Widget _zona3() {
+    final rates = _controller.rates;
     final filas = [
-      (_m('USD'), _rates?.bcv, 'USD', 'bcv'),
-      (_m('USDT'), _rates?.usdt, 'USDT', 'usdt'),
-      (_m('EUR'), _rates?.eur, 'EUR', 'eur'),
+      (_m('USD'), rates?.bcv, 'USD', 'bcv'),
+      (_m('USDT'), rates?.usdt, 'USDT', 'usdt'),
+      (_m('EUR'), rates?.eur, 'EUR', 'eur'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -637,7 +629,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
               final esUltima = idx == filas.length - 1;
               final copiado = _copiado['tasa_$code'] == true;
               final tasaStr = tasa != null ? _fmt(tasa) : '—';
-              final fuente = _rates?.sources[sourceKey];
+              final fuente = rates?.sources[sourceKey];
               return GestureDetector(
                 onLongPress: () {
                   if (tasa != null) _copiar('tasa_$code', tasaStr);
@@ -727,10 +719,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // ZONA 4 — Footer
   // ────────────────────────────────────────────────────────────────────────────
   Widget _footer() {
-    final status = _dotStatus();
+    final status = _controller.dotStatus;
+    final isOffline = _controller.isOffline;
     Color tsColor = kTextDim;
-    if (_isOffline) tsColor = kRed;
-    if (!_isOffline && status == DataStatus.old) tsColor = kYellow;
+    if (isOffline) tsColor = kRed;
+    if (!isOffline && status == DataStatus.old) tsColor = kYellow;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
       decoration: const BoxDecoration(
@@ -743,7 +736,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
           Text(_timestamp(),
               style: TextStyle(
                   fontSize: 9, color: tsColor, fontFamily: 'monospace')),
-          StatusDot(status: status, isLoading: _isLoading),
+          StatusDot(status: status, isLoading: _controller.isLoading),
         ],
       ),
     );
