@@ -59,6 +59,29 @@ const _monedas = [
 Moneda _m(String code) =>
     _monedas.firstWhere((m) => m.code == code, orElse: () => _monedas[0]);
 
+// USDT no es un país, así que no tiene bandera real: en vez del emoji
+// placeholder ⬜, mostramos un círculo con su color de marca y el símbolo ₮.
+Widget _bandera(Moneda m, double size) {
+  if (m.code == 'USDT') {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: m.color, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Text(
+        '₮',
+        style: TextStyle(
+          fontSize: size * 0.62,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          height: 1,
+        ),
+      ),
+    );
+  }
+  return Text(m.bandera, style: TextStyle(fontSize: size));
+}
+
 // ─── Conversión ───────────────────────────────────────────────────────────────
 // La lógica real vive en lib/utils/currency_converter.dart (funciones públicas,
 // testeables). Estos alias cortos evitan reescribir cada punto de uso abajo.
@@ -240,7 +263,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   ),
                   child: Row(
                     children: [
-                      Text(m.bandera, style: const TextStyle(fontSize: 20)),
+                      _bandera(m, 20),
                       const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,8 +464,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(moneda.bandera,
-                          style: const TextStyle(fontSize: 14)),
+                      _bandera(moneda, 14),
                       const SizedBox(width: 5),
                       Text(moneda.code,
                           style: const TextStyle(
@@ -506,15 +528,21 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     final otras =
         _monedas.where((m) => m.code != _desde && m.code != _hacia).toList();
 
-    return FadeTransition(
-      opacity: _equivOpacity,
-      child: SlideTransition(
-        position: _equivSlide,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            const Text('TAMBIÉN EQUIVALE A',
+    // SizeTransition colapsa el alto a 0 (no solo la opacidad) para que
+    // "TASAS DE REFERENCIA" suba y no quede un hueco vacío cuando no hay
+    // ningún monto cargado.
+    return SizeTransition(
+      sizeFactor: _equivCtrl,
+      alignment: const Alignment(-1, -1),
+      child: FadeTransition(
+        opacity: _equivOpacity,
+        child: SlideTransition(
+          position: _equivSlide,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              const Text('TAMBIÉN EQUIVALE A',
                 style: TextStyle(
                     fontSize: 10,
                     color: Color(0xFF444444),
@@ -598,7 +626,8 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                 ),
               );
             }),
-          ],
+            ],
+          ),
         ),
       ),
     );
