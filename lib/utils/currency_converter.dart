@@ -39,8 +39,16 @@ String formatAmount(double v) {
   return NumberFormat('#,##0.##', 'es_VE').format(v);
 }
 
-// Parsea texto en formato venezolano ("1.234,56") a double.
+// Parsea un monto sin asumir un único formato: el ÚLTIMO separador
+// (','  o '.') que aparece se interpreta como el decimal, y cualquier
+// separador anterior se descarta (se asume de miles). Así "63.5", "63,5",
+// "1.234,56" y "1,234.56" se leen todos correctamente, sin importar qué
+// convención use quien escribe.
 double? parseAmount(String text) {
   if (text.isEmpty) return null;
-  return double.tryParse(text.replaceAll('.', '').replaceAll(',', '.'));
+  final lastSeparator = text.lastIndexOf(RegExp(r'[.,]'));
+  if (lastSeparator == -1) return double.tryParse(text);
+  final entero = text.substring(0, lastSeparator).replaceAll(RegExp(r'[.,]'), '');
+  final decimales = text.substring(lastSeparator + 1);
+  return double.tryParse('$entero.$decimales');
 }

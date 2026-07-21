@@ -81,5 +81,23 @@ void main() {
     test('número simple sin separadores', () {
       expect(parseAmount('500'), 500.0);
     });
+
+    // El último separador (sea , o .) es siempre el decimal, sin importar
+    // qué convención use quien escribe.
+    test('coma como decimal sin separador de miles: "63,5"', () {
+      expect(parseAmount('63,5'), 63.5);
+    });
+    test('punto como decimal (hábito de teclado en inglés): "63.5"', () {
+      expect(parseAmount('63.5'), 63.5);
+    });
+    test('formato estadounidense "1,234.56" se interpreta como 1234.56', () {
+      expect(parseAmount('1,234.56'), 1234.56);
+    });
+    test('varios separadores de miles con coma decimal: "1.234.567,89"', () {
+      expect(parseAmount('1.234.567,89'), 1234567.89);
+    });
+    test('separador al final sin decimales: "63,"', () {
+      expect(parseAmount('63,'), 63.0);
+    });
   });
 }
