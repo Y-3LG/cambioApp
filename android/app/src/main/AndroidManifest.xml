@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Permiso de internet requerido para fetch de tasas -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ (API 33+) requiere este permiso explícito para poder
+         mostrar notificaciones; en versiones anteriores se ignora. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="CambioApp"

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../controllers/intervencion_controller.dart';
 import '../controllers/rates_controller.dart';
 import '../models/rates_model.dart';
 import '../utils/currency_converter.dart' as converter;
@@ -102,6 +103,7 @@ class CalculatorScreen extends StatefulWidget {
 class _CalculatorScreenState extends State<CalculatorScreen>
     with TickerProviderStateMixin {
   final _controller = RatesController();
+  final _intervencionController = IntervencionController();
 
   String _desde = 'USD';
   String _hacia = 'BS';
@@ -145,6 +147,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
 
     _controller.addListener(_onRatesChanged);
     _controller.load();
+    // No engancha nada visual todavía: chequea en silencio y, si el número
+    // de intervención cambió desde la última vez, dispara una notificación
+    // local (ver IntervencionController).
+    _intervencionController.check();
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _focusDesde.requestFocus());
   }
