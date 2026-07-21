@@ -373,7 +373,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                          color: kAccent.withOpacity(0.35),
+                          color: kAccent.withValues(alpha: 0.35),
                           blurRadius: 12,
                           offset: const Offset(0, 4))
                     ],

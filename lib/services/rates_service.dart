@@ -13,8 +13,8 @@ class RatesService {
   final Future<bool> Function() _hasConnection;
 
   static Future<bool> _defaultHasConnection() async {
-    final result = await Connectivity().checkConnectivity();
-    return result != ConnectivityResult.none;
+    final results = await Connectivity().checkConnectivity();
+    return results.any((r) => r != ConnectivityResult.none);
   }
 
   // IMPORTANTE: reemplazar con la URL real del Worker desplegado
