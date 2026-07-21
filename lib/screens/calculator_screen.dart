@@ -305,24 +305,32 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _zona1(),
-                    _zona2(),
-                    _zona3(),
-                    const SizedBox(height: 80),
-                  ],
+        child: Center(
+          child: ConstrainedBox(
+            // En pantallas anchas (web de escritorio) evita que la app se
+            // estire de punta a punta; en celular esto nunca se activa
+            // porque el viewport ya es más angosto que 480.
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _zona1(),
+                        _zona2(),
+                        _zona3(),
+                        const SizedBox(height: 80),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                _footer(),
+              ],
             ),
-            _footer(),
-          ],
+          ),
         ),
       ),
     );
